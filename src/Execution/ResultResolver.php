@@ -26,13 +26,10 @@ final readonly class ResultResolver
             $transformer->transformResult($context, $result);
         }
 
-        if (is_array($result->data)) {
-            $result->data = $this->transformResultData($context, $result->data);
-        }
+        $result->data = $this->transformResultData($context, $result->data);
     }
 
     private function transformResultData(Context $context, array $data): array
     {
-
     }
 }

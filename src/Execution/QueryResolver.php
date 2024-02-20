@@ -17,6 +17,7 @@ use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\InterfaceType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
+use GraphQL\Type\Definition\UnionType;
 use GraphQL\Type\Definition\WrappingType;
 use GraphQL\Type\Introspection;
 use XGraphQL\SchemaTransformer\AST\NameTransformedDirective;
@@ -87,11 +88,11 @@ final readonly class QueryResolver
             $type = $type->getInnermostType();
         }
 
-        if (!$type instanceof ObjectType && !$type instanceof InterfaceType) {
-            throw new InvalidArgumentException('Type should be object or interface');
+        if (!$type instanceof ObjectType && !$type instanceof InterfaceType && !$type instanceof UnionType) {
+            throw new InvalidArgumentException('Type should be object, interface, or union.');
         }
 
-        foreach ($selectionSet->selections as $pos => $selection) {
+        foreach ($selectionSet->selections as $selection) {
             $nameNode = $ast = null;
 
             if ($selection instanceof FieldNode) {
@@ -144,7 +145,7 @@ final readonly class QueryResolver
     }
 
     private function transformSelection(
-        ObjectType|InterfaceType $type,
+        ObjectType|InterfaceType|UnionType $type,
         SelectionNode $selection,
         Context $context
     ): void {
