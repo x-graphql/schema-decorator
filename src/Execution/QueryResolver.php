@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace XGraphQL\SchemaTransformer\Query;
+namespace XGraphQL\SchemaTransformer\Execution;
 
 use GraphQL\Language\AST\FieldDefinitionNode;
 use GraphQL\Language\AST\FieldNode;
@@ -13,6 +13,7 @@ use GraphQL\Language\AST\SelectionNode;
 use GraphQL\Language\AST\SelectionSetNode;
 use GraphQL\Language\AST\TypeDefinitionNode;
 use GraphQL\Language\AST\VariableDefinitionNode;
+use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\InterfaceType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
@@ -21,7 +22,6 @@ use GraphQL\Type\Introspection;
 use XGraphQL\SchemaTransformer\AST\NameTransformedDirective;
 use XGraphQL\SchemaTransformer\Exception\InvalidArgumentException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
-use XGraphQL\Utils\SelectionSet;
 use XGraphQL\Utils\Variable;
 
 final readonly class QueryResolver
@@ -33,7 +33,7 @@ final readonly class QueryResolver
     {
     }
 
-    public function resolve(QueryContext $context): void
+    public function resolve(Context $context): void
     {
         $this->transformVariableDefinitions($context);
         $this->transformFragments($context);
@@ -45,13 +45,9 @@ final readonly class QueryResolver
 
         /// Need to clean up unused variable values after transformed.
         $this->removeUnusedVariableValues($context);
-
-        /// Add typename to selections for supporting transform typename.
-        SelectionSet::addTypenameToFragments($context->fragments);
-        SelectionSet::addTypename($context->operation->selectionSet);
     }
 
-    private function transformVariableDefinitions(QueryContext $context): void
+    private function transformVariableDefinitions(Context $context): void
     {
         foreach ($context->operation->variableDefinitions as $definition) {
             /** @var VariableDefinitionNode $definition */
@@ -70,7 +66,7 @@ final readonly class QueryResolver
         }
     }
 
-    private function transformFragments(QueryContext $context): void
+    private function transformFragments(Context $context): void
     {
         foreach ($context->fragments as $fragment) {
             $nameNode = $fragment->typeCondition->name;
@@ -85,7 +81,7 @@ final readonly class QueryResolver
         }
     }
 
-    private function transformSelectionSet(Type $type, SelectionSetNode $selectionSet, QueryContext $context): void
+    private function transformSelectionSet(Type $type, SelectionSetNode $selectionSet, Context $context): void
     {
         if ($type instanceof WrappingType) {
             $type = $type->getInnermostType();
@@ -125,7 +121,13 @@ final readonly class QueryResolver
             $this->transformSelection($type, $selection, $context);
 
             if (null !== $nameNode && null !== $ast) {
+                $alias = $nameNode->value;
+
                 $this->transformNameNode($nameNode, $ast);
+
+                if ($selection instanceof FieldNode && null === $selection->alias) {
+                    $selection->alias = Parser::name($alias);
+                }
             }
         }
 
@@ -141,8 +143,11 @@ final readonly class QueryResolver
         }
     }
 
-    private function transformSelection(ObjectType|InterfaceType $type, SelectionNode $selection, QueryContext $context): void
-    {
+    private function transformSelection(
+        ObjectType|InterfaceType $type,
+        SelectionNode $selection,
+        Context $context
+    ): void {
         foreach ($this->transformers as $transformer) {
             if (!$transformer instanceof SelectionTransformerInterface) {
                 continue;
@@ -152,7 +157,7 @@ final readonly class QueryResolver
         }
     }
 
-    private function removeUnusedVariableValues(QueryContext $context): void
+    private function removeUnusedVariableValues(Context $context): void
     {
         $variablesUsing = array_fill_keys($this->getVariablesUsing($context), true);
 
@@ -175,7 +180,7 @@ final readonly class QueryResolver
         $variableDefinitions->reindex();
     }
 
-    private function getVariablesUsing(QueryContext $context): array
+    private function getVariablesUsing(Context $context): array
     {
         $variables = array_merge(
             Variable::getVariablesInOperation($context->operation),

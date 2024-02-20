@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace XGraphQL\SchemaTransformer\Query;
+namespace XGraphQL\SchemaTransformer\Execution;
 
 use GraphQL\Language\AST\SelectionNode;
 use GraphQL\Type\Definition\InterfaceType;
@@ -11,5 +11,5 @@ use XGraphQL\SchemaTransformer\TransformerInterface;
 
 interface SelectionTransformerInterface extends TransformerInterface
 {
-    public function transformSelection(ObjectType|InterfaceType $type, SelectionNode $selection, QueryContext $context): void;
+    public function transformSelection(ObjectType|InterfaceType $type, SelectionNode $selection, Context $context): void;
 }
