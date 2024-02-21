@@ -12,7 +12,6 @@ use GraphQL\Language\Parser;
 use GraphQL\Type\Schema;
 use GraphQL\Utils\AST;
 use GraphQL\Utils\BuildSchema;
-use GraphQL\Utils\SchemaPrinter;
 use GraphQL\Validator\DocumentValidator;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
@@ -20,7 +19,7 @@ use XGraphQL\DelegateExecution\Execution;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
 use XGraphQL\SchemaTransformer\AST\ASTResolver;
-use XGraphQL\SchemaTransformer\Execution\TransformExecutionDelegator;
+use XGraphQL\SchemaTransformer\Execution\ExecutionResolver;
 
 final readonly class SchemaTransformer
 {
@@ -77,9 +76,9 @@ final readonly class SchemaTransformer
     private function createSchemaFromAST(DocumentNode $ast): Schema
     {
         $schema = BuildSchema::build($ast, options: ['assumeValidSDL' => true]);
-        $transformDelegator = new TransformExecutionDelegator($this->delegator, $this->transformers);
+        $executionResolver = new ExecutionResolver($this->delegator, $this->transformers);
 
-        Execution::delegate($schema, $transformDelegator);
+        Execution::delegate($schema, $executionResolver);
 
         return $schema;
     }

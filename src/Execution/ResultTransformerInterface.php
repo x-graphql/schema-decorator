@@ -9,5 +9,5 @@ use XGraphQL\SchemaTransformer\TransformerInterface;
 
 interface ResultTransformerInterface extends TransformerInterface
 {
-    public function transformResult(Context $context, ExecutionResult $result): void;
+    public function transformResult(TransformContext $context, ExecutionResult $result): void;
 }

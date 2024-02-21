@@ -12,5 +12,5 @@ use XGraphQL\SchemaTransformer\TransformerInterface;
 
 interface SelectionTransformerInterface extends TransformerInterface
 {
-    public function transformSelection(ObjectType|InterfaceType|UnionType $type, SelectionNode $selection, Context $context): void;
+    public function transformSelection(ObjectType|InterfaceType|UnionType $type, SelectionNode $selection, TransformContext $context): void;
 }

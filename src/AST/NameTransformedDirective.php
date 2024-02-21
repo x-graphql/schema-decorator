@@ -9,6 +9,7 @@ use GraphQL\Language\AST\DirectiveNode;
 use GraphQL\Language\AST\FieldDefinitionNode;
 use GraphQL\Language\AST\StringValueNode;
 use GraphQL\Language\AST\TypeDefinitionNode;
+use GraphQL\Language\DirectiveLocation;
 
 /**
  * @internal
@@ -20,8 +21,16 @@ final class NameTransformedDirective
     public static function definition(): string
     {
         return sprintf(
-            'directive @%s(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM',
-            self::NAME
+            'directive @%s(original: String!) on %s | %s | %s | %s | %s | %s | %s | %s',
+            self::NAME,
+            DirectiveLocation::IFACE,
+            DirectiveLocation::OBJECT,
+            DirectiveLocation::INPUT_OBJECT,
+            DirectiveLocation::FIELD_DEFINITION,
+            DirectiveLocation::INPUT_FIELD_DEFINITION,
+            DirectiveLocation::SCALAR,
+            DirectiveLocation::ENUM,
+            DirectiveLocation::UNION,
         );
     }
 

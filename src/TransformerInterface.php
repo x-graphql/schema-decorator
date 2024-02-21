@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace XGraphQL\SchemaTransformer;
 
 /**
- * Mark all transformers
+ * Interface to mark all schema transformers
  */
 interface TransformerInterface
 {
