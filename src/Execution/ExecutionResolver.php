@@ -20,7 +20,6 @@ use GraphQL\Language\AST\VariableDefinitionNode;
 use GraphQL\Language\Parser;
 use GraphQL\Type\Definition\AbstractType;
 use GraphQL\Type\Definition\InterfaceType;
-use GraphQL\Type\Definition\NamedType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Definition\UnionType;
@@ -59,7 +58,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         $this->transformVariableDefinitions($context);
         $this->transformFragments($context, $transformedTypenameMapping);
         $this->transformSelectionSet(
-            $context->schema->getOperationType($context->operation->operation),
+            $context->executionSchema->getOperationType($context->operation->operation),
             $context->operation->selectionSet,
             $context,
             $transformedTypenameMapping,
@@ -100,7 +99,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
             }
 
             $nameNode = $typeNode->name;
-            $ast = $context->schema->getType($nameNode->value)->astNode();
+            $ast = $context->executionSchema->getType($nameNode->value)->astNode();
 
             if (null !== $ast) {
                 $this->transformNameNode($nameNode, $ast);
@@ -114,7 +113,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
     ): void {
         foreach ($context->fragments as $fragment) {
             $nameNode = $fragment->typeCondition->name;
-            $type = $context->schema->getType($nameNode->value);
+            $type = $context->executionSchema->getType($nameNode->value);
             $ast = $type->astNode();
 
             $this->transformSelectionSet($type, $fragment->selectionSet, $context, $transformedTypenameMapping);
@@ -180,7 +179,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
 
             if ($selection instanceof InlineFragmentNode) {
                 $nameNode = $selection->typeCondition->name;
-                $selectionType = $context->schema->getType($nameNode->value);
+                $selectionType = $context->executionSchema->getType($nameNode->value);
                 $ast = $selectionType->astNode();
 
                 $this->transformSelectionSet(
@@ -217,7 +216,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         }
 
         if ($type instanceof AbstractType) {
-            foreach ($context->schema->getPossibleTypes($type) as $possibleType) {
+            foreach ($context->executionSchema->getPossibleTypes($type) as $possibleType) {
                 $this->trackingTransformedTypename($context, $possibleType, $transformedTypenameMapping);
             }
         }
@@ -311,16 +310,18 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
             $typenameMapping[$originalName] = $type->name();
         }
 
-        array_walk_recursive(
-            $result->data,
-            function (mixed &$value, string $key) use ($typenameMapping) {
-                if (Introspection::TYPE_NAME_FIELD_NAME !== $key) {
-                    return;
-                }
+        if (is_array($result->data)) {
+            array_walk_recursive(
+                $result->data,
+                function (mixed &$value, string $key) use ($typenameMapping) {
+                    if (Introspection::TYPE_NAME_FIELD_NAME !== $key) {
+                        return;
+                    }
 
-                $value = $typenameMapping[$value] ?? $value;
-            }
-        );
+                    $value = $typenameMapping[$value] ?? $value;
+                }
+            );
+        }
 
         return $result;
     }
