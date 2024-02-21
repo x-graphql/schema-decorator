@@ -15,6 +15,7 @@ use GraphQL\Language\AST\ObjectTypeDefinitionNode;
 use GraphQL\Language\AST\OperationTypeDefinitionNode;
 use GraphQL\Language\AST\SchemaDefinitionNode;
 use GraphQL\Language\AST\TypeDefinitionNode;
+use GraphQL\Language\AST\UnionTypeDefinitionNode;
 use XGraphQL\SchemaTransformer\Exception\LogicException;
 
 final readonly class PruneTransformer implements PostTransformerInterface
@@ -28,7 +29,7 @@ final readonly class PruneTransformer implements PostTransformerInterface
     public function postTransform(DocumentNode $ast): void
     {
         $schemaDefinition = null;
-        $types = $usingTypes = $directives = $removedTypes = [];
+        $types = $usingTypes = $abstractTypes = $directives = $removedTypes = [];
 
         foreach ($ast->definitions as $definition) {
             if ($definition instanceof SchemaDefinitionNode) {
@@ -37,6 +38,20 @@ final readonly class PruneTransformer implements PostTransformerInterface
 
             if ($definition instanceof TypeDefinitionNode) {
                 $types[$definition->getName()->value] = $definition;
+            }
+
+            if ($definition instanceof ObjectTypeDefinitionNode) {
+                foreach ($definition->interfaces as $interface) {
+                    /** @var NamedTypeNode $interface */
+                    $abstractTypes[$interface->name->value][] = $definition->getName()->value;
+                }
+            }
+
+            if ($definition instanceof UnionTypeDefinitionNode) {
+                foreach ($definition->types as $subType) {
+                    /** @var NamedTypeNode $subType */
+                    $abstractTypes[$definition->getName()->value][] = $subType->name->value;
+                }
             }
 
             if ($definition instanceof DirectiveNode) {
@@ -50,18 +65,18 @@ final readonly class PruneTransformer implements PostTransformerInterface
 
         foreach ($directives as $directive) {
             foreach ($directive->arguments as $arg) {
-                $usingTypes += $this->getTypeOfArgOrField($arg, $types, $usingTypes);
+                $usingTypes += $this->getTypeOfArgOrField($arg, $types, $usingTypes, $abstractTypes);
             }
         }
 
         foreach ($schemaDefinition->operationTypes as $operationType) {
             /** @var OperationTypeDefinitionNode $operationType */
-            $typeName = $operationType->type->name->value;
+            $typename = $operationType->type->name->value;
 
-            if (isset($types[$typeName]) && $types[$typeName] instanceof ObjectTypeDefinitionNode) {
-                $usingTypes[$typeName] = true;
+            if (isset($types[$typename]) && $types[$typename] instanceof ObjectTypeDefinitionNode) {
+                $usingTypes[$typename] = true;
 
-                $usingTypes += $this->getTypesOfFieldsUsing($types[$typeName], $types, $usingTypes);
+                $usingTypes += $this->getTypesOfFieldsUsing($types[$typename], $types, $abstractTypes, $usingTypes);
             }
         }
 
@@ -70,11 +85,11 @@ final readonly class PruneTransformer implements PostTransformerInterface
                 continue;
             }
 
-            $typeName = $definition->getName()->value;
+            $typename = $definition->getName()->value;
 
-            if (!$this->skipRemoveUnusedTypes && false === ($usingTypes[$typeName] ?? false)) {
+            if (!$this->skipRemoveUnusedTypes && false === ($usingTypes[$typename] ?? false)) {
                 unset($ast->definitions[$pos]);
-                $removedTypes[$typeName] = true;
+                $removedTypes[$typename] = true;
 
                 /// Type had been removed, nothing to do.
                 continue;
@@ -86,7 +101,7 @@ final readonly class PruneTransformer implements PostTransformerInterface
                 && 0 === $definition->fields->count()
             ) {
                 unset($ast->definitions[$pos]);
-                $removedTypes[$typeName] = true;
+                $removedTypes[$typename] = true;
             }
         }
 
@@ -94,9 +109,9 @@ final readonly class PruneTransformer implements PostTransformerInterface
 
         foreach ($schemaDefinition->operationTypes as $pos => $operationType) {
             /** @var OperationTypeDefinitionNode $operationType */
-            $typeName = $operationType->type->name->value;
+            $typename = $operationType->type->name->value;
 
-            if (isset($removedTypes[$typeName])) {
+            if (isset($removedTypes[$typename])) {
                 unset($schemaDefinition->operationTypes[$pos]);
             }
         }
@@ -113,49 +128,64 @@ final readonly class PruneTransformer implements PostTransformerInterface
     private function getTypesOfFieldsUsing(
         ObjectTypeDefinitionNode|InterfaceTypeDefinitionNode|InputObjectTypeDefinitionNode $type,
         array $types,
+        array $abstractTypes,
         array $usingTypes,
     ): array {
         foreach ($type->fields as $field) {
             if ($field instanceof FieldDefinitionNode) {
                 foreach ($field->arguments as $arg) {
-                    $usingTypes += $this->getTypeOfArgOrField($arg, $types, $usingTypes);
+                    $usingTypes += $this->getTypeOfArgOrField($arg, $types, $abstractTypes, $usingTypes);
                 }
             }
 
-            $usingTypes += $this->getTypeOfArgOrField($field, $types, $usingTypes);
+            $usingTypes += $this->getTypeOfArgOrField($field, $types, $abstractTypes, $usingTypes);
         }
 
         return $usingTypes;
     }
 
-    private function getTypeOfArgOrField(FieldDefinitionNode|InputValueDefinitionNode $field, array $types, array $usingTypes): array
-    {
+    private function getTypeOfArgOrField(
+        FieldDefinitionNode|InputValueDefinitionNode $field,
+        array $types,
+        array $abstractTypes,
+        array $usingTypes,
+    ): array {
         $fieldType = $field->type;
 
         while (!$fieldType instanceof NamedTypeNode) {
             $fieldType = $fieldType->type;
         }
 
-        $definition = $types[$fieldType->name->value] ?? null;
+        $fieldTypename = $fieldType->name->value;
 
-        if (null === $definition) {
+        if (isset($usingTypes[$fieldTypename])) {
             return $usingTypes;
         }
 
-        $fieldTypeName = $fieldType->name->value;
+        $usingTypes[$fieldTypename] = true;
 
-        if (isset($usingTypes[$fieldTypeName])) {
-            return $usingTypes;
-        }
-
-        $usingTypes[$fieldTypeName] = true;
+        $definition = $types[$fieldTypename] ?? null;
 
         if (
             $definition instanceof InputObjectTypeDefinitionNode
             || $definition instanceof ObjectTypeDefinitionNode
             || $definition instanceof InterfaceTypeDefinitionNode
         ) {
-            $usingTypes += $this->getTypesOfFieldsUsing($definition, $types, $usingTypes);
+            $usingTypes += $this->getTypesOfFieldsUsing($definition, $types, $abstractTypes, $usingTypes);
+        }
+
+        foreach ($abstractTypes[$fieldTypename] ?? [] as $implTypename) {
+            if (isset($usingTypes[$implTypename])) {
+                continue;
+            }
+
+            $usingTypes[$implTypename] = true;
+
+            $implDefinition = $types[$implTypename] ?? null;
+
+            if ($implDefinition instanceof ObjectTypeDefinitionNode) {
+                $usingTypes += $this->getTypesOfFieldsUsing($implDefinition, $types, $abstractTypes, $usingTypes);
+            }
         }
 
         return $usingTypes;
