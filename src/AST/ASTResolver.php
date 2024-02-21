@@ -18,7 +18,6 @@ use GraphQL\Language\AST\SchemaDefinitionNode;
 use GraphQL\Language\AST\TypeDefinitionNode;
 use GraphQL\Language\AST\UnionTypeDefinitionNode;
 use GraphQL\Language\Parser;
-use GraphQL\Validator\DocumentValidator;
 use XGraphQL\SchemaTransformer\Exception\LogicException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
 
@@ -33,6 +32,8 @@ final readonly class ASTResolver
 
     public function resolve(DocumentNode $ast): void
     {
+        $this->addTransformDirectives($ast);
+
         $schema = $this->findOrAddSchemaDefinition($ast);
         $types = [];
 
@@ -52,9 +53,13 @@ final readonly class ASTResolver
 
         $this->transformReferenceTypes($ast, $types);
         $this->postTransform($ast);
-        $this->assertAST($ast);
 
         $ast->definitions->reindex();
+    }
+
+    private function addTransformDirectives(DocumentNode $ast): void
+    {
+        $ast->definitions[] = Parser::directiveDefinition(NameTransformedDirective::definition());
     }
 
     private function findOrAddSchemaDefinition(DocumentNode $ast): SchemaDefinitionNode
@@ -277,8 +282,10 @@ final readonly class ASTResolver
      * @param TypeDefinitionNode[] $types
      * @return void
      */
-    private function transformNameOfReferenceFieldOrArg(FieldDefinitionNode|InputValueDefinitionNode $fieldOrArg, array $types): void
-    {
+    private function transformNameOfReferenceFieldOrArg(
+        FieldDefinitionNode|InputValueDefinitionNode $fieldOrArg,
+        array $types
+    ): void {
         $namedType = $fieldOrArg->type;
 
         while (!$namedType instanceof NamedTypeNode) {
@@ -299,16 +306,5 @@ final readonly class ASTResolver
 
             $transformer->postTransform($ast);
         }
-    }
-
-    private function assertAST(DocumentNode $ast): void
-    {
-        /// Add transform directives to AST to support validate.
-        $ast->definitions[] = Parser::directiveDefinition(NameTransformedDirective::definition());
-
-        DocumentValidator::assertValidSDL($ast);
-
-        /// Remove all after validate
-        $ast->definitions = $ast->definitions->splice(0, -1);
     }
 }

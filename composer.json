@@ -3,7 +3,10 @@
     "description": "Transforming types, fields of GraphQL schema",
     "type": "library",
     "require-dev": {
-        "phpunit/phpunit": "^11.0"
+        "nyholm/psr7": "^1.8",
+        "phpunit/phpunit": "^11.0",
+        "symfony/http-client": "^7.0",
+        "x-graphql/http-schema": "^0.2.0"
     },
     "license": "MIT",
     "autoload": {
@@ -21,10 +24,13 @@
         "php": ">=8.2",
         "psr/simple-cache": "^2.0 || ^3.0",
         "webonyx/graphql-php": "^15.9",
-        "x-graphql/delegate-execution": "^0.3.0",
+        "x-graphql/delegate-execution": "^0.4.0",
         "x-graphql/utils": "^0.1.0"
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
     }
 }
