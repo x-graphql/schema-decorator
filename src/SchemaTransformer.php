@@ -20,6 +20,7 @@ use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
 use XGraphQL\SchemaTransformer\AST\ASTResolver;
 use XGraphQL\SchemaTransformer\Execution\ExecutionResolver;
+use XGraphQL\Utils\SchemaPrinter;
 
 final readonly class SchemaTransformer
 {
@@ -60,7 +61,7 @@ final readonly class SchemaTransformer
             return $this->createSchemaFromAST($ast);
         }
 
-        $sdl = SchemaPrinter::doPrint($this->delegator->getSchema());
+        $sdl = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($this->delegator->getSchema());
         $ast = Parser::parse($sdl, ['noLocation' => true]);
         $resolver = new ASTResolver($this->transformers);
 
