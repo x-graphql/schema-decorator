@@ -9,5 +9,4 @@ namespace XGraphQL\SchemaTransformer;
  */
 interface TransformerInterface
 {
-
 }

@@ -25,9 +25,8 @@ final class SchemaPrinter extends BaseSchemaPrinter
         return static::printFilteredSchema(
             $schema,
             $directivesFilter,
-            static fn(NamedType $type): bool => !$type->isBuiltInType(),
+            static fn (NamedType $type): bool => !$type->isBuiltInType(),
             $options
         );
     }
-
 }
