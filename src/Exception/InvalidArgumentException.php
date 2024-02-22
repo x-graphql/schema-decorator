@@ -6,5 +6,4 @@ namespace XGraphQL\SchemaTransformer\Exception;
 
 class InvalidArgumentException extends \InvalidArgumentException implements ExceptionInterface
 {
-
 }

@@ -75,7 +75,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         );
 
         return $promise->then(
-            fn(ExecutionResult $result) => $this->transformExecutionResult(
+            fn (ExecutionResult $result) => $this->transformExecutionResult(
                 $context,
                 $result,
                 $transformedTypenameMapping,
