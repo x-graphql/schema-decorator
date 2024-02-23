@@ -63,9 +63,9 @@ final readonly class SchemaTransformer
 
         $sdl = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($this->delegator->getSchema());
         $ast = Parser::parse($sdl, ['noLocation' => true]);
-        $resolver = new ASTResolver($this->transformers);
+        $astResolver = new ASTResolver($this->transformers);
 
-        $resolver->resolve($ast);
+        $astResolver->resolve($ast);
 
         DocumentValidator::assertValidSDL($ast);
 

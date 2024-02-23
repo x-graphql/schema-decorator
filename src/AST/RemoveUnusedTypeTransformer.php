@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace XGraphQL\SchemaTransformer\AST;
 
-use GraphQL\Language\AST\DirectiveNode;
+use GraphQL\Language\AST\DirectiveDefinitionNode;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\AST\FieldDefinitionNode;
 use GraphQL\Language\AST\InputObjectTypeDefinitionNode;
@@ -18,18 +18,19 @@ use GraphQL\Language\AST\TypeDefinitionNode;
 use GraphQL\Language\AST\UnionTypeDefinitionNode;
 use XGraphQL\SchemaTransformer\Exception\LogicException;
 
-final readonly class PruneTransformer implements PostTransformerInterface
+final readonly class RemoveUnusedTypeTransformer implements PostTransformerInterface
 {
-    public function __construct(
-        private bool $skipRemoveUnusedTypes = false,
-        private bool $skipRemoveEmptyObjectInterface = false
-    ) {
+    /**
+     * @param string[] $skip name of types to skip remove even it unused
+     */
+    public function __construct(private array $skip = [])
+    {
     }
 
     public function postTransform(DocumentNode $ast): void
     {
         $schemaDefinition = null;
-        $types = $usingTypes = $abstractTypes = $directives = $removedTypes = [];
+        $types = $abstractTypes = $usingTypes = $directives = [];
 
         foreach ($ast->definitions as $definition) {
             if ($definition instanceof SchemaDefinitionNode) {
@@ -54,7 +55,7 @@ final readonly class PruneTransformer implements PostTransformerInterface
                 }
             }
 
-            if ($definition instanceof DirectiveNode) {
+            if ($definition instanceof DirectiveDefinitionNode) {
                 $directives[$definition->name->value] = $definition;
             }
         }
@@ -65,7 +66,7 @@ final readonly class PruneTransformer implements PostTransformerInterface
 
         foreach ($directives as $directive) {
             foreach ($directive->arguments as $arg) {
-                $usingTypes += $this->getTypeOfArgOrField($arg, $types, $usingTypes, $abstractTypes);
+                $usingTypes += $this->getTypeOfArgOrField($arg, $types, $abstractTypes, $usingTypes);
             }
         }
 
@@ -80,6 +81,11 @@ final readonly class PruneTransformer implements PostTransformerInterface
             }
         }
 
+        $this->removeUnusedTypes($ast, $usingTypes);
+    }
+
+    private function removeUnusedTypes(DocumentNode $ast, array $usingTypes): void
+    {
         foreach ($ast->definitions as $pos => $definition) {
             if (!$definition instanceof TypeDefinitionNode) {
                 continue;
@@ -87,41 +93,24 @@ final readonly class PruneTransformer implements PostTransformerInterface
 
             $typename = $definition->getName()->value;
 
-            if (!$this->skipRemoveUnusedTypes && false === ($usingTypes[$typename] ?? false)) {
-                unset($ast->definitions[$pos]);
-                $removedTypes[$typename] = true;
-
-                /// Type had been removed, nothing to do.
+            if ($usingTypes[$typename] ?? false) {
                 continue;
             }
 
-            if (
-                !$this->skipRemoveEmptyObjectInterface
-                && ($definition instanceof ObjectTypeDefinitionNode || $definition instanceof InterfaceTypeDefinitionNode)
-                && 0 === $definition->fields->count()
-            ) {
-                unset($ast->definitions[$pos]);
-                $removedTypes[$typename] = true;
+            if (in_array($typename, $this->skip, true)) {
+                continue;
             }
+
+            unset($ast->definitions[$pos]);
         }
 
         $ast->definitions->reindex();
-
-        foreach ($schemaDefinition->operationTypes as $pos => $operationType) {
-            /** @var OperationTypeDefinitionNode $operationType */
-            $typename = $operationType->type->name->value;
-
-            if (isset($removedTypes[$typename])) {
-                unset($schemaDefinition->operationTypes[$pos]);
-            }
-        }
-
-        $schemaDefinition->operationTypes->reindex();
     }
 
     /**
      * @param ObjectTypeDefinitionNode|InterfaceTypeDefinitionNode|InputObjectTypeDefinitionNode $type
      * @param TypeDefinitionNode[] $types
+     * @param array $abstractTypes
      * @param bool[] $usingTypes
      * @return bool[]
      */

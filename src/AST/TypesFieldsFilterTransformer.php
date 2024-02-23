@@ -25,7 +25,7 @@ final readonly class TypesFieldsFilterTransformer implements FieldFilterTransfor
         $typeName = $type->getName()->value;
         $fieldName = $field->name->value;
 
-        return !isset($this->typesFields[$typeName])
-            || in_array($fieldName, $this->typesFields[$typeName], true);
+        return isset($this->typesFields[$typeName])
+            && in_array($fieldName, $this->typesFields[$typeName], true);
     }
 }
