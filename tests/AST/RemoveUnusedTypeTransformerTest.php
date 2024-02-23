@@ -9,13 +9,17 @@ use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\SchemaTransformer\AST\RemoveUnusedTypeTransformer;
+use XGraphQL\SchemaTransformer\Exception\LogicException;
 use XGraphQL\Utils\SchemaPrinter;
 
 class RemoveUnusedTypeTransformerTest extends TestCase
 {
     #[DataProvider(methodName: 'dataProvider')]
-    public function testRemoveUnusedTypes(RemoveUnusedTypeTransformer $transformer, string $sdl, string $sdlExpecting): void
-    {
+    public function testRemoveUnusedTypes(
+        RemoveUnusedTypeTransformer $transformer,
+        string $sdl,
+        string $sdlExpecting
+    ): void {
         $ast = Parser::parse($sdl);
 
         $transformer->postTransform($ast);
@@ -25,6 +29,22 @@ class RemoveUnusedTypeTransformerTest extends TestCase
         );
 
         $this->assertEquals($sdlExpecting, $actualSDL);
+    }
+
+    public function testMissingSchemaWillThrowLogicException(): void
+    {
+        $transformer = new RemoveUnusedTypeTransformer();
+        $ast = Parser::parse(
+            <<<'SDL'
+type Query {
+  test: String!
+}
+SDL
+        );
+
+        $this->expectException(LogicException::class);
+
+        $transformer->postTransform($ast);
     }
 
     public static function dataProvider(): array
