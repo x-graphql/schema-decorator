@@ -193,12 +193,14 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
             $this->transformSelection($type, $selection, $context);
 
             if (null !== $nameNode && null !== $ast) {
-                $alias = $nameNode->value;
+                $aliasValue = $nameNode->value;
 
                 $this->transformNameNode($nameNode, $ast);
 
-                if ($selection instanceof FieldNode && null === $selection->alias) {
-                    $selection->alias = Parser::name($alias);
+                $nameValue = $nameNode->value;
+
+                if ($selection instanceof FieldNode && null === $selection->alias && $aliasValue !== $nameValue) {
+                    $selection->alias = Parser::name($aliasValue);
                 }
             }
         }
