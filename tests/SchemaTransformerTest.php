@@ -60,10 +60,10 @@ SDL
         $cache
             ->expects($this->exactly(2))
             ->method('has')
-            ->willReturn(false, true);
+            ->willReturn(false, true, true);
 
         $cache
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('set')
             ->willReturnCallback(
                 static function (string $key, array $ast) use (&$astCached): bool {
@@ -101,5 +101,9 @@ SDL
         $schemaTransformedFromCache = $schemaTransformer->transform();
 
         $this->assertNotEquals($schemaTransformed, $schemaTransformedFromCache);
+
+        $schemaTransformedForced = $schemaTransformer->transform(true);
+
+        $this->assertNotEquals($schemaTransformedFromCache, $schemaTransformedForced);
     }
 }
