@@ -18,12 +18,12 @@ class TypesFieldsFilterTransformerTest extends TestCase
         $type = Parser::objectTypeDefinition('type TestType { field: String! field_keep: String! }');
         $fieldShouldRemove = $type->fields[0];
         $fieldShouldKeep = $type->fields[1];
-        $transformer = new TypesFieldsFilterTransformer(['TestType' => ['field']]);
+        $transformer = new TypesFieldsFilterTransformer(['TestType' => ['field_keep']]);
 
         $this->assertInstanceOf(FieldDefinitionNode::class, $fieldShouldRemove);
         $this->assertInstanceOf(FieldDefinitionNode::class, $fieldShouldKeep);
-        $this->assertTrue($transformer->filterField($fieldShouldRemove, $type, $schema));
-        $this->assertFalse($transformer->filterField($fieldShouldKeep, $type, $schema));
+        $this->assertTrue($transformer->filterField($fieldShouldKeep, $type, $schema));
+        $this->assertFalse($transformer->filterField($fieldShouldRemove, $type, $schema));
     }
 
     public function testCanExcludeFilterByTypename(): void
@@ -34,6 +34,6 @@ class TypesFieldsFilterTransformerTest extends TestCase
         $transformer = new TypesFieldsFilterTransformer(['TestType' => ['field']]);
 
         $this->assertInstanceOf(FieldDefinitionNode::class, $field);
-        $this->assertFalse($transformer->filterField($field, $type, $schema));
+        $this->assertTrue($transformer->filterField($field, $type, $schema));
     }
 }

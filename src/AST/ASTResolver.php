@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace XGraphQL\SchemaTransformer\AST;
 
 use GraphQL\Language\AST\DefinitionNode;
+use GraphQL\Language\AST\DirectiveDefinitionNode;
 use GraphQL\Language\AST\DirectiveNode;
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\AST\FieldDefinitionNode;
@@ -244,7 +245,7 @@ final readonly class ASTResolver
             }
         }
 
-        if ($definition instanceof DirectiveNode) {
+        if ($definition instanceof DirectiveDefinitionNode) {
             foreach ($definition->arguments as $arg) {
                 $this->transformNameOfReferenceFieldOrArg($arg, $types);
             }
