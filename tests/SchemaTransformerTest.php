@@ -9,11 +9,10 @@ use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
-use XGraphQL\HttpSchema\HttpExecutionDelegator;
-use XGraphQL\HttpSchema\SchemaFactory;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
 use XGraphQL\SchemaTransformer\TransformerInterface;
+use XGraphQL\Utils\SchemaPrinter;
 
 class SchemaTransformerTest extends TestCase
 {
@@ -105,5 +104,17 @@ SDL
         $schemaTransformedForced = $schemaTransformer->transform(true);
 
         $this->assertNotEquals($schemaTransformedFromCache, $schemaTransformedForced);
+
+        $expectingSDL = <<<'SDL'
+directive @nameTransformed(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM | UNION
+
+type Query {
+  XGraphQL_test: String!
+}
+
+SDL;
+        $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformed));
+        $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedFromCache));
+        $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedForced));
     }
 }
