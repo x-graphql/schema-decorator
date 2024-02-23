@@ -7,12 +7,12 @@ namespace XGraphQL\SchemaTransformer\Execution;
 use GraphQL\Language\AST\OperationDefinitionNode;
 use GraphQL\Type\Schema;
 
-final readonly class TransformContext
+final class TransformContext
 {
     public function __construct(
-        public Schema $executionSchema,
-        public OperationDefinitionNode $operation,
-        public array $fragments,
+        public readonly Schema $executionSchema,
+        public readonly OperationDefinitionNode $operation,
+        public readonly array $fragments,
         public array $variableValues,
     ) {
     }
