@@ -6,17 +6,17 @@ namespace XGraphQL\SchemaTransformer\Test\AST;
 
 use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
-use GraphQL\Utils\BuildSchema;
+use GraphQL\Language\Printer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\SchemaTransformer\AST\ASTResolver;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\AST\PrefixTypenameTransformer;
 use XGraphQL\SchemaTransformer\AST\RemoveUnusedTypeTransformer;
+use XGraphQL\SchemaTransformer\AST\TypeFilterTransformer;
 use XGraphQL\SchemaTransformer\AST\TypesFieldsFilterTransformer;
 use XGraphQL\SchemaTransformer\Exception\LogicException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
-use XGraphQL\Utils\SchemaPrinter;
 
 class ASTResolverTest extends TestCase
 {
@@ -32,8 +32,7 @@ class ASTResolverTest extends TestCase
         $resolver = new ASTResolver($transformers);
         $resolver->resolve($ast);
 
-        $schema = BuildSchema::buildAST($ast, options: ['assumeValidSDL' => true]);
-        $actualSDL = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($schema);
+        $actualSDL = Printer::doPrint($ast);
 
         $this->assertEquals(trim($expectingSDL), trim($actualSDL));
     }
@@ -140,76 +139,84 @@ SDL;
         return [
             'immutable ast' => [
                 [],
-                $ast,
-                $sdl,
+                $ast->cloneDeep(),
+                $sdl . <<<'SDL'
+
+
+directive @nameTransformed(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM | UNION
+
+schema {
+  query: Query
+  mutation: Mutation
+}
+SDL
+,
             ],
             'mutate ast by transformers' => [
                 [
                     new PrefixRootFieldsNameTransformer('xGraphQL_'),
                     new PrefixTypenameTransformer('XGraphQL'),
                     new TypesFieldsFilterTransformer(['Category' => ['name']]),
+                    new TypeFilterTransformer(excludes: ['CacheOptions']),
                     new RemoveUnusedTypeTransformer(),
                 ],
-                $ast,
+                $ast->cloneDeep(),
                 <<<'SDL'
-schema {
-  query: XGraphQLQuery
-  mutation: XGraphQLMutation
+directive @cached(options: CacheOptions!) on FIELD
+
+type XGraphQLQuery @nameTransformed(original: "Query") {
+  xGraphQL_items(filter: XGraphQLItemFilter!): [XGraphQLItemInterface!]! @nameTransformed(original: "items")
+  xGraphQL_categories: [XGraphQLCategory!]! @nameTransformed(original: "categories")
 }
 
-directive @cached(options: XGraphQLCacheOptions!) on FIELD
-
-input XGraphQLCacheOptions {
-  ttl: Int!
-  key: String!
-}
-
-type XGraphQLQuery {
-  xGraphQL_items(filter: XGraphQLItemFilter!): [XGraphQLItemInterface!]!
-  xGraphQL_categories: [XGraphQLCategory!]!
-}
-
-input XGraphQLItemFilter {
+input XGraphQLItemFilter @nameTransformed(original: "ItemFilter") {
   name: XGraphQLItemNameFilter!
   category: String!
 }
 
-input XGraphQLItemNameFilter {
+input XGraphQLItemNameFilter @nameTransformed(original: "ItemNameFilter") {
   equal: String!
   like: String!
 }
 
-type XGraphQLMutation {
-  xGraphQL_addShoes(name: String!): XGraphQLShoes!
-  xGraphQL_addShirt(name: String!): XGraphQLShirt!
+type XGraphQLMutation @nameTransformed(original: "Mutation") {
+  xGraphQL_addShoes(name: String!): XGraphQLShoes! @nameTransformed(original: "addShoes")
+  xGraphQL_addShirt(name: String!): XGraphQLShirt! @nameTransformed(original: "addShirt")
 }
 
-type XGraphQLCategory {
+type XGraphQLCategory @nameTransformed(original: "Category") {
   name: String!
 }
 
-interface XGraphQLItemInterface {
+interface XGraphQLItemInterface @nameTransformed(original: "ItemInterface") {
   id: ID!
   name: String!
   category: XGraphQLCategory!
 }
 
-type XGraphQLShoes implements XGraphQLItemInterface {
+type XGraphQLShoes implements XGraphQLItemInterface @nameTransformed(original: "Shoes") {
   id: ID!
   name: String!
   category: XGraphQLCategory!
 }
 
-type XGraphQLShirt implements XGraphQLItemInterface {
+type XGraphQLShirt implements XGraphQLItemInterface @nameTransformed(original: "Shirt") {
   id: ID!
   name: String!
   category: XGraphQLCategory!
 }
 
-type XGraphQLBelt implements XGraphQLItemInterface {
+type XGraphQLBelt implements XGraphQLItemInterface @nameTransformed(original: "Belt") {
   id: ID!
   name: String!
   category: XGraphQLCategory!
+}
+
+directive @nameTransformed(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM | UNION
+
+schema {
+  query: XGraphQLQuery
+  mutation: XGraphQLMutation
 }
 SDL
             ],
