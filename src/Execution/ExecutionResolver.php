@@ -213,10 +213,6 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         ObjectType|InterfaceType|UnionType $type,
         \SplObjectStorage $transformedTypenameMapping
     ): void {
-        if (null === $type->astNode) {
-            return;
-        }
-
         if ($type instanceof AbstractType) {
             foreach ($context->executionSchema->getPossibleTypes($type) as $possibleType) {
                 $this->trackingTransformedTypename($context, $possibleType, $transformedTypenameMapping);
