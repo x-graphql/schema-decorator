@@ -16,26 +16,6 @@ use XGraphQL\Utils\SchemaPrinter;
 
 class SchemaTransformerTest extends TestCase
 {
-    public function testConstructor(): void
-    {
-        $schema = $this->createStub(Schema::class);
-        $delegator = $this->createStub(SchemaExecutionDelegatorInterface::class);
-        $transformer = $this->createStub(TransformerInterface::class);
-        $cache = $this->createStub(CacheInterface::class);
-
-        $instanceCreatedWithSchema = new SchemaTransformer($schema, []);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithSchema);
-
-        $instanceCreatedWithDelegator = new SchemaTransformer($delegator, []);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithDelegator);
-
-        $instanceCreatedWithAllDependencies = new SchemaTransformer($schema, [$transformer], $cache);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithAllDependencies);
-    }
-
     public function testCreateTransformedSchemaWithoutCache(): void
     {
         $schema = BuildSchema::build(
@@ -45,8 +25,7 @@ type Query {
 }
 SDL
         );
-        $schemaTransformer = new SchemaTransformer($schema, []);
-        $schemaTransformed = $schemaTransformer->transform();
+        $schemaTransformed = SchemaTransformer::transform($schema, []);
 
         $this->assertInstanceOf(Schema::class, $schema);
         $this->assertNotEquals($schema, $schemaTransformed);
@@ -62,7 +41,7 @@ SDL
             ->willReturn(false, true, true);
 
         $cache
-            ->expects($this->exactly(2))
+            ->expects($this->exactly(1))
             ->method('set')
             ->willReturnCallback(
                 static function (string $key, array $ast) use (&$astCached): bool {
@@ -90,20 +69,15 @@ SDL
         );
 
         $transformer = new PrefixRootFieldsNameTransformer('XGraphQL_');
-        $schemaTransformer = new SchemaTransformer($schema, [$transformer], $cache);
-        $schemaTransformed = $schemaTransformer->transform();
+        $schemaTransformed = SchemaTransformer::transform($schema, [$transformer], $cache);
 
         $this->assertInstanceOf(Schema::class, $schema);
         $this->assertNotEquals($schema, $schemaTransformed);
         $this->assertNotNull($astCached);
 
-        $schemaTransformedFromCache = $schemaTransformer->transform();
+        $schemaTransformedFromCache = SchemaTransformer::transform($schema, [$transformer], $cache);
 
         $this->assertNotEquals($schemaTransformed, $schemaTransformedFromCache);
-
-        $schemaTransformedForced = $schemaTransformer->transform(true);
-
-        $this->assertNotEquals($schemaTransformedFromCache, $schemaTransformedForced);
 
         $expectingSDL = <<<'SDL'
 directive @nameTransformed(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM | UNION
@@ -115,6 +89,5 @@ type Query {
 SDL;
         $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformed));
         $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedFromCache));
-        $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedForced));
     }
 }

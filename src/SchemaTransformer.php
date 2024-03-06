@@ -7,7 +7,6 @@ namespace XGraphQL\SchemaTransformer;
 use GraphQL\Error\Error;
 use GraphQL\Error\SerializationError;
 use GraphQL\Error\SyntaxError;
-use GraphQL\Language\AST\DocumentNode;
 use GraphQL\Language\Parser;
 use GraphQL\Type\Schema;
 use GraphQL\Utils\AST;
@@ -15,6 +14,7 @@ use GraphQL\Utils\BuildSchema;
 use GraphQL\Validator\DocumentValidator;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
+use XGraphQL\DelegateExecution\DelegatedErrorsReporterInterface;
 use XGraphQL\DelegateExecution\Execution;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
@@ -24,24 +24,6 @@ use XGraphQL\Utils\SchemaPrinter;
 
 final readonly class SchemaTransformer
 {
-    private SchemaExecutionDelegatorInterface $delegator;
-
-    /**
-     * @param TransformerInterface[] $transformers
-     */
-    public function __construct(
-        SchemaExecutionDelegatorInterface|Schema $schemaOrDelegator,
-        private iterable $transformers,
-        private ?CacheInterface $astCache = null,
-    ) {
-        if ($schemaOrDelegator instanceof Schema) {
-            $schemaDelegator = new SchemaExecutionDelegator($schemaOrDelegator);
-        } else {
-            $schemaDelegator = $schemaOrDelegator;
-        }
-
-        $this->delegator = $schemaDelegator;
-    }
 
     /**
      * @throws SerializationError
@@ -49,37 +31,41 @@ final readonly class SchemaTransformer
      * @throws \JsonException
      * @throws SyntaxError
      * @throws Error
+     * @throws \ReflectionException
      */
-    public function transform(bool $force = false): Schema
-    {
-        if (false === $force && true === $this->astCache?->has(__METHOD__)) {
-            $astNormalized = $this->astCache->get(__METHOD__);
-            $ast = AST::fromArray($astNormalized);
-
-            \assert($ast instanceof DocumentNode);
-
-            return $this->createSchemaFromAST($ast);
+    public static function transform(
+        SchemaExecutionDelegatorInterface|Schema $schemaOrDelegator,
+        iterable $transformers,
+        CacheInterface $cache = null,
+        DelegatedErrorsReporterInterface $errorsReporter = null,
+    ): Schema {
+        if ($schemaOrDelegator instanceof Schema) {
+            $delegator = new SchemaExecutionDelegator($schemaOrDelegator);
+        } else {
+            $delegator = $schemaOrDelegator;
         }
 
-        $sdl = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($this->delegator->getSchema());
-        $ast = Parser::parse($sdl, ['noLocation' => true]);
-        $astResolver = new ASTResolver($this->transformers);
+        $cacheKey = '_x_graphql_transformed_ast';
 
-        $astResolver->resolve($ast);
+        if (true === $cache?->has($cacheKey)) {
+            $astNormalized = $cache->get($cacheKey);
+            $ast = AST::fromArray($astNormalized);
+        } else {
+            $sdl = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($delegator->getSchema());
+            $ast = Parser::parse($sdl, ['noLocation' => true]);
+            $astResolver = new ASTResolver($transformers);
 
-        DocumentValidator::assertValidSDL($ast);
+            $astResolver->resolve($ast);
 
-        $this->astCache?->set(__METHOD__, AST::toArray($ast));
+            DocumentValidator::assertValidSDL($ast);
 
-        return $this->createSchemaFromAST($ast);
-    }
+            $cache?->set(__METHOD__, AST::toArray($ast));
+        }
 
-    private function createSchemaFromAST(DocumentNode $ast): Schema
-    {
         $schema = BuildSchema::build($ast, options: ['assumeValidSDL' => true]);
-        $executionResolver = new ExecutionResolver($this->delegator, $this->transformers);
+        $executionResolver = new ExecutionResolver($delegator, $transformers);
 
-        Execution::delegate($schema, $executionResolver);
+        Execution::delegate($schema, $executionResolver, $errorsReporter);
 
         return $schema;
     }

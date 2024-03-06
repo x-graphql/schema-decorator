@@ -24,19 +24,18 @@ Usages
 ```php
 use GraphQL\GraphQL;
 use XGraphQL\HttpSchema\HttpExecutionDelegator;
-use XGraphQL\HttpSchema\SchemaFactory;
+use XGraphQL\HttpSchema\HttpSchemaFactory;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
 
-$delegator = new HttpExecutionDelegator('POST', 'https://countries.trevorblades.com/');
-$factory = new SchemaFactory($delegator);
-$transformer = new SchemaTransformer(
-  $factory->fromIntrospectionQuery(),
+$delegator = new HttpExecutionDelegator('https://countries.trevorblades.com/');
+$schema = HttpSchemaFactory::createFromIntrospectionQuery($delegator);
+$transformedSchema = SchemaTransformer::transform(
+  $schema
   [
      new PrefixRootFieldsNameTransformer('XGraphQL_')
   ],
 );
-$schema = $transformer->transform();
 
 $query = <<<'GQL'
 query getCountries {
@@ -46,7 +45,7 @@ query getCountries {
 }
 GQL;
 
-$result = GraphQL::executeQuery($schema, $query);
+$result = GraphQL::executeQuery($transformedSchema, $query);
 
 var_dump($result->data);
 ```
