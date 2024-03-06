@@ -7,33 +7,29 @@ namespace XGraphQL\SchemaTransformer\Test;
 use GraphQL\Type\Schema;
 use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
-use Psr\SimpleCache\CacheInterface;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
-use XGraphQL\SchemaTransformer\TransformerInterface;
 use XGraphQL\Utils\SchemaPrinter;
 
 class SchemaTransformerTest extends TestCase
 {
-    public function testConstructor(): void
+    public function testCreateTransformedSchemaWithSchemaDelegator(): void
     {
-        $schema = $this->createStub(Schema::class);
-        $delegator = $this->createStub(SchemaExecutionDelegatorInterface::class);
-        $transformer = $this->createStub(TransformerInterface::class);
-        $cache = $this->createStub(CacheInterface::class);
+        $schema = BuildSchema::build(
+            <<<'SDL'
+type Query {
+  test: String!
+}
+SDL
+        );
+        $delegator = new SchemaExecutionDelegator($schema);
+        $schemaTransformed = SchemaTransformer::transform($delegator, []);
 
-        $instanceCreatedWithSchema = new SchemaTransformer($schema, []);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithSchema);
-
-        $instanceCreatedWithDelegator = new SchemaTransformer($delegator, []);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithDelegator);
-
-        $instanceCreatedWithAllDependencies = new SchemaTransformer($schema, [$transformer], $cache);
-
-        $this->assertInstanceOf(SchemaTransformer::class, $instanceCreatedWithAllDependencies);
+        $this->assertInstanceOf(Schema::class, $schema);
+        $this->assertNotEquals($schema, $schemaTransformed);
     }
 
     public function testCreateTransformedSchemaWithoutCache(): void
@@ -45,8 +41,7 @@ type Query {
 }
 SDL
         );
-        $schemaTransformer = new SchemaTransformer($schema, []);
-        $schemaTransformed = $schemaTransformer->transform();
+        $schemaTransformed = SchemaTransformer::transform($schema, []);
 
         $this->assertInstanceOf(Schema::class, $schema);
         $this->assertNotEquals($schema, $schemaTransformed);
@@ -54,32 +49,8 @@ SDL
 
     public function testCreateTransformedSchemaCache(): void
     {
-        $astCached = null;
-        $cache = $this->createMock(CacheInterface::class);
-        $cache
-            ->expects($this->exactly(2))
-            ->method('has')
-            ->willReturn(false, true, true);
-
-        $cache
-            ->expects($this->exactly(2))
-            ->method('set')
-            ->willReturnCallback(
-                static function (string $key, array $ast) use (&$astCached): bool {
-                    $astCached = $ast;
-
-                    return true;
-                }
-            );
-
-        $cache
-            ->expects($this->once())
-            ->method('get')
-            ->willReturnCallback(
-                function () use (&$astCached) {
-                    return $astCached;
-                }
-            );
+        $cache = new ArrayAdapter();
+        $psr16Cache = new Psr16Cache($cache);
 
         $schema = BuildSchema::build(
             <<<'SDL'
@@ -90,20 +61,18 @@ SDL
         );
 
         $transformer = new PrefixRootFieldsNameTransformer('XGraphQL_');
-        $schemaTransformer = new SchemaTransformer($schema, [$transformer], $cache);
-        $schemaTransformed = $schemaTransformer->transform();
+
+        $this->assertFalse($psr16Cache->has('_x_graphql_transformed_ast'));
+
+        $schemaTransformed = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
 
         $this->assertInstanceOf(Schema::class, $schema);
         $this->assertNotEquals($schema, $schemaTransformed);
-        $this->assertNotNull($astCached);
 
-        $schemaTransformedFromCache = $schemaTransformer->transform();
+        $schemaTransformedFromCache = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
 
+        $this->assertTrue($psr16Cache->has('_x_graphql_transformed_ast'));
         $this->assertNotEquals($schemaTransformed, $schemaTransformedFromCache);
-
-        $schemaTransformedForced = $schemaTransformer->transform(true);
-
-        $this->assertNotEquals($schemaTransformedFromCache, $schemaTransformedForced);
 
         $expectingSDL = <<<'SDL'
 directive @nameTransformed(original: String!) on INTERFACE | OBJECT | INPUT_OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION | SCALAR | ENUM | UNION
@@ -115,6 +84,5 @@ type Query {
 SDL;
         $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformed));
         $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedFromCache));
-        $this->assertEquals($expectingSDL, SchemaPrinter::doPrint($schemaTransformedForced));
     }
 }

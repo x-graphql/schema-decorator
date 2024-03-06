@@ -10,7 +10,7 @@ use GraphQL\Type\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\HttpSchema\HttpExecutionDelegator;
-use XGraphQL\HttpSchema\SchemaFactory;
+use XGraphQL\HttpSchema\HttpSchemaFactory;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\AST\PrefixTypenameTransformer;
 use XGraphQL\SchemaTransformer\AST\RemoveUnusedTypeTransformer;
@@ -27,10 +27,10 @@ class ExecutionTest extends TestCase
         parent::setUp();
 
         if (null === $this->transformedSchema) {
-            $delegator = new HttpExecutionDelegator('POST', 'https://countries.trevorblades.com/');
-            $schemaFactory = new SchemaFactory($delegator);
-            $schemaTransformer = new SchemaTransformer(
-                $schemaFactory->fromIntrospectionQuery(),
+            $delegator = new HttpExecutionDelegator('https://countries.trevorblades.com/');
+
+            $this->transformedSchema = SchemaTransformer::transform(
+                HttpSchemaFactory::createFromIntrospectionQuery($delegator),
                 [
                     new TypesFieldsFilterTransformer(['Query' => ['countries']]),
                     new PrefixRootFieldsNameTransformer('x_graphql_'),
@@ -38,8 +38,6 @@ class ExecutionTest extends TestCase
                     new RemoveUnusedTypeTransformer(),
                 ],
             );
-
-            $this->transformedSchema = $schemaTransformer->transform();
         }
     }
 
