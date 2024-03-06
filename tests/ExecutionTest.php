@@ -11,7 +11,6 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\HttpSchema\HttpExecutionDelegator;
 use XGraphQL\HttpSchema\HttpSchemaFactory;
-use XGraphQL\HttpSchema\SchemaFactory;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\AST\PrefixTypenameTransformer;
 use XGraphQL\SchemaTransformer\AST\RemoveUnusedTypeTransformer;

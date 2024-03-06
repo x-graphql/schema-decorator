@@ -24,7 +24,6 @@ use XGraphQL\Utils\SchemaPrinter;
 
 final readonly class SchemaTransformer
 {
-
     /**
      * @throws SerializationError
      * @throws InvalidArgumentException
@@ -59,7 +58,7 @@ final readonly class SchemaTransformer
 
             DocumentValidator::assertValidSDL($ast);
 
-            $cache?->set(__METHOD__, AST::toArray($ast));
+            $cache?->set($cacheKey, AST::toArray($ast));
         }
 
         $schema = BuildSchema::build($ast, options: ['assumeValidSDL' => true]);
