@@ -9,12 +9,29 @@ use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
+use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
 use XGraphQL\Utils\SchemaPrinter;
 
 class SchemaTransformerTest extends TestCase
 {
+    public function testCreateTransformedSchemaWithSchemaDelegator(): void
+    {
+        $schema = BuildSchema::build(
+            <<<'SDL'
+type Query {
+  test: String!
+}
+SDL
+        );
+        $delegator = new SchemaExecutionDelegator($schema);
+        $schemaTransformed = SchemaTransformer::transform($delegator, []);
+
+        $this->assertInstanceOf(Schema::class, $schema);
+        $this->assertNotEquals($schema, $schemaTransformed);
+    }
+
     public function testCreateTransformedSchemaWithoutCache(): void
     {
         $schema = BuildSchema::build(
