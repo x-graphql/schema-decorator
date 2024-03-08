@@ -31,7 +31,7 @@ use XGraphQL\SchemaTransformer\SchemaTransformer;
 $delegator = new HttpExecutionDelegator('https://countries.trevorblades.com/');
 $schema = HttpSchemaFactory::createFromIntrospectionQuery($delegator);
 $transformedSchema = SchemaTransformer::transform(
-  $schema
+  $schema,
   [
      new PrefixRootFieldsNameTransformer('XGraphQL_')
   ],
