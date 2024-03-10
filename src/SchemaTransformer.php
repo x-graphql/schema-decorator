@@ -24,6 +24,8 @@ use XGraphQL\Utils\SchemaPrinter;
 
 final readonly class SchemaTransformer
 {
+    public const CACHE_KEY = '_x_graphql_ast_transformed_schema';
+
     /**
      * @throws SerializationError
      * @throws InvalidArgumentException
@@ -44,12 +46,7 @@ final readonly class SchemaTransformer
             $delegator = $schemaOrDelegator;
         }
 
-        $cacheKey = '_x_graphql_transformed_ast';
-
-        if (true === $cache?->has($cacheKey)) {
-            $astNormalized = $cache->get($cacheKey);
-            $ast = AST::fromArray($astNormalized);
-        } else {
+        if (!$cache?->has(self::CACHE_KEY)) {
             $sdl = SchemaPrinter::printSchemaExcludeTypeSystemDirectives($delegator->getSchema());
             $ast = Parser::parse($sdl, ['noLocation' => true]);
             $astResolver = new ASTResolver($transformers);
@@ -58,7 +55,10 @@ final readonly class SchemaTransformer
 
             DocumentValidator::assertValidSDL($ast);
 
-            $cache?->set($cacheKey, AST::toArray($ast));
+            $cache?->set(self::CACHE_KEY, AST::toArray($ast));
+        } else {
+            $astNormalized = $cache->get(self::CACHE_KEY);
+            $ast = AST::fromArray($astNormalized);
         }
 
         $schema = BuildSchema::build($ast, options: ['assumeValidSDL' => true]);

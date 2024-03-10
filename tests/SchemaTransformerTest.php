@@ -62,7 +62,7 @@ SDL
 
         $transformer = new PrefixRootFieldsNameTransformer('XGraphQL_');
 
-        $this->assertFalse($psr16Cache->has('_x_graphql_transformed_ast'));
+        $this->assertFalse($psr16Cache->has(SchemaTransformer::CACHE_KEY));
 
         $schemaTransformed = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
 
@@ -71,7 +71,7 @@ SDL
 
         $schemaTransformedFromCache = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
 
-        $this->assertTrue($psr16Cache->has('_x_graphql_transformed_ast'));
+        $this->assertTrue($psr16Cache->has(SchemaTransformer::CACHE_KEY));
         $this->assertNotEquals($schemaTransformed, $schemaTransformedFromCache);
 
         $expectingSDL = <<<'SDL'
