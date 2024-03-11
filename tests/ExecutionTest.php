@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace XGraphQL\SchemaTransformer\Test;
 
 use GraphQL\Error\DebugFlag;
+use GraphQL\Error\Error;
 use GraphQL\GraphQL;
 use GraphQL\Type\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -22,6 +23,8 @@ class ExecutionTest extends TestCase
 {
     private ?Schema $transformedSchema = null;
 
+    private ?DelegatedErrorsReporter $errorsReporter = null;
+
     public function setUp(): void
     {
         parent::setUp();
@@ -29,6 +32,7 @@ class ExecutionTest extends TestCase
         if (null === $this->transformedSchema) {
             $delegator = new HttpExecutionDelegator('https://countries.trevorblades.com/');
 
+            $this->errorsReporter = new DelegatedErrorsReporter();
             $this->transformedSchema = SchemaTransformer::transform(
                 HttpSchemaFactory::createFromIntrospectionQuery($delegator),
                 [
@@ -37,6 +41,7 @@ class ExecutionTest extends TestCase
                     new PrefixTypenameTransformer('XGraphQL'),
                     new RemoveUnusedTypeTransformer(),
                 ],
+                errorsReporter: $this->errorsReporter,
             );
         }
     }
@@ -185,8 +190,6 @@ SDL
 
     public function testUsing__typenameAliasOnTransformedTypeWillThrowException(): void
     {
-        $this->expectException(RuntimeException::class);
-
         GraphQL::executeQuery(
             $this->transformedSchema,
             <<<'SDL'
@@ -204,6 +207,15 @@ SDL,
                     ]
                 ]
             ]
-        )->toArray(DebugFlag::RETHROW_INTERNAL_EXCEPTIONS | DebugFlag::RETHROW_UNSAFE_EXCEPTIONS);
+        )->toArray();
+
+        $this->assertCount(1, $this->errorsReporter->lastErrors);
+
+        $lastError = $this->errorsReporter->lastErrors[0];
+
+        $this->assertInstanceOf(Error::class, $lastError);
+        $this->assertEquals('Error during delegate execution', $lastError->getMessage());
+        $this->assertInstanceOf(RuntimeException::class, $lastError->getPrevious());
+        $this->assertStringContainsString('__typename', $lastError->getPrevious()->getMessage());
     }
 }
