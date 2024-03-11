@@ -19,7 +19,7 @@ use XGraphQL\DelegateExecution\Execution;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
 use XGraphQL\SchemaTransformer\AST\ASTResolver;
-use XGraphQL\SchemaTransformer\Execution\ExecutionResolver;
+use XGraphQL\SchemaTransformer\Execution\ExecutionDelegator;
 use XGraphQL\Utils\SchemaPrinter;
 
 final readonly class SchemaTransformer
@@ -62,7 +62,7 @@ final readonly class SchemaTransformer
         }
 
         $schema = BuildSchema::build($ast, options: ['assumeValidSDL' => true]);
-        $executionResolver = new ExecutionResolver($delegator, $transformers);
+        $executionResolver = new ExecutionDelegator($delegator, $transformers);
 
         Execution::delegate($schema, $executionResolver, $errorsReporter);
 

@@ -34,7 +34,7 @@ use XGraphQL\SchemaTransformer\Exception\RuntimeException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
 use XGraphQL\Utils\Variable;
 
-final readonly class ExecutionResolver implements ExecutionDelegatorInterface
+final readonly class ExecutionDelegator implements ExecutionDelegatorInterface
 {
     /**
      * @param SchemaExecutionDelegatorInterface $delegator

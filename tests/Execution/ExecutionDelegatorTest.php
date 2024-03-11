@@ -18,12 +18,12 @@ use GraphQL\Type\Schema;
 use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
-use XGraphQL\SchemaTransformer\Execution\ExecutionResolver;
+use XGraphQL\SchemaTransformer\Execution\ExecutionDelegator;
 use XGraphQL\SchemaTransformer\Execution\ResultTransformerInterface;
 use XGraphQL\SchemaTransformer\Execution\SelectionTransformerInterface;
 use XGraphQL\SchemaTransformer\Execution\TransformContext;
 
-class ExecutionResolverTest extends TestCase
+class ExecutionDelegatorTest extends TestCase
 {
     public function testConstructor(): void
     {
@@ -31,12 +31,12 @@ class ExecutionResolverTest extends TestCase
         $delegator = $this->createMock(SchemaExecutionDelegatorInterface::class);
         $delegator->expects($this->once())->method('getPromiseAdapter')->willReturn($promiseAdapter);
 
-        $resolver = new ExecutionResolver(
+        $resolver = new ExecutionDelegator(
             $delegator,
             [],
         );
 
-        $this->assertInstanceOf(ExecutionResolver::class, $resolver);
+        $this->assertInstanceOf(ExecutionDelegator::class, $resolver);
         $this->assertEquals($promiseAdapter, $resolver->getPromiseAdapter());
     }
 
@@ -83,7 +83,7 @@ class ExecutionResolverTest extends TestCase
                 }
             );
 
-        $resolver = new ExecutionResolver(
+        $resolver = new ExecutionDelegator(
             $delegator,
             [$resultTransformer, $selectionTransformer],
         );
