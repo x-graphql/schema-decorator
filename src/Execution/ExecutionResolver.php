@@ -214,14 +214,8 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         \SplObjectStorage $transformedTypenameMapping
     ): void {
         if ($type instanceof AbstractType) {
-            $implementations = $context->executionSchema->getImplementations($type);
-
-            foreach ($implementations->objects() as $objectType) {
+            foreach ($context->executionSchema->getPossibleTypes($type) as $objectType) {
                 $this->trackingTransformedTypename($context, $objectType, $transformedTypenameMapping);
-            }
-
-            foreach ($implementations->interfaces() as $interfaceType) {
-                $this->trackingTransformedTypename($context, $interfaceType, $transformedTypenameMapping);
             }
         }
 
