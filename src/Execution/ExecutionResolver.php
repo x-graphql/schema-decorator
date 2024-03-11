@@ -55,14 +55,14 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         $context = new TransformContext($executionSchema, $operation, $fragments, $variables);
         $transformedTypenameMapping = new \SplObjectStorage();
 
-        $this->transformVariableDefinitions($context);
-        $this->transformFragments($context, $transformedTypenameMapping);
         $this->transformSelectionSet(
             $context->executionSchema->getOperationType($context->operation->operation),
             $context->operation->selectionSet,
             $context,
             $transformedTypenameMapping,
         );
+        $this->transformFragments($context, $transformedTypenameMapping);
+        $this->transformVariableDefinitions($context);
 
         /// Need to clean up unused variable values after operation and fragments transformed.
         $this->removeUnusedVariableValues($context);
@@ -75,7 +75,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         );
 
         return $promise->then(
-            fn (ExecutionResult $result) => $this->transformExecutionResult(
+            fn(ExecutionResult $result) => $this->transformExecutionResult(
                 $context,
                 $result,
                 $transformedTypenameMapping,
@@ -146,7 +146,7 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
             if ($selection instanceof FieldNode) {
                 $nameNode = $selection->name;
 
-                if (isset($transformedTypenameMapping[$type]) && Introspection::TYPE_NAME_FIELD_NAME === $selection->alias?->value) {
+                if (Introspection::TYPE_NAME_FIELD_NAME === $selection->alias?->value) {
                     /// Can not resolve impl type of execution result
                     /// if any fields with an alias `__typename` exists.
                     throw new RuntimeException(
@@ -214,8 +214,14 @@ final readonly class ExecutionResolver implements ExecutionDelegatorInterface
         \SplObjectStorage $transformedTypenameMapping
     ): void {
         if ($type instanceof AbstractType) {
-            foreach ($context->executionSchema->getPossibleTypes($type) as $possibleType) {
-                $this->trackingTransformedTypename($context, $possibleType, $transformedTypenameMapping);
+            $implementations = $context->executionSchema->getImplementations($type);
+
+            foreach ($implementations->objects() as $objectType) {
+                $this->trackingTransformedTypename($context, $objectType, $transformedTypenameMapping);
+            }
+
+            foreach ($implementations->interfaces() as $interfaceType) {
+                $this->trackingTransformedTypename($context, $interfaceType, $transformedTypenameMapping);
             }
         }
 
