@@ -17,7 +17,7 @@ use GraphQL\Type\Definition\UnionType;
 use GraphQL\Type\Schema;
 use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
+use XGraphQL\Delegate\SchemaDelegatorInterface;
 use XGraphQL\SchemaTransformer\Execution\ExecutionDelegator;
 use XGraphQL\SchemaTransformer\Execution\ResultTransformerInterface;
 use XGraphQL\SchemaTransformer\Execution\SelectionTransformerInterface;
@@ -28,7 +28,7 @@ class ExecutionDelegatorTest extends TestCase
     public function testConstructor(): void
     {
         $promiseAdapter = new SyncPromiseAdapter();
-        $delegator = $this->createMock(SchemaExecutionDelegatorInterface::class);
+        $delegator = $this->createMock(SchemaDelegatorInterface::class);
         $delegator->expects($this->once())->method('getPromiseAdapter')->willReturn($promiseAdapter);
 
         $resolver = new ExecutionDelegator(
@@ -44,11 +44,11 @@ class ExecutionDelegatorTest extends TestCase
     {
         $adapter = new SyncPromiseAdapter();
         $schema = $this->createTransformedSchema();
-        $delegator = $this->createMock(SchemaExecutionDelegatorInterface::class);
+        $delegator = $this->createMock(SchemaDelegatorInterface::class);
 
         $delegator
             ->expects($this->once())
-            ->method('delegate')
+            ->method('delegateToExecute')
             ->willReturn($adapter->createFulfilled(new ExecutionResult()));
 
         $resultTransformer = $this->createMock(ResultTransformerInterface::class);
@@ -110,7 +110,7 @@ query test($unusedVar: Boolean!) {
 GQL
         );
 
-        $promise = $resolver->delegate($schema, $operation, [$fragment], ['unusedVar' => true]);
+        $promise = $resolver->delegateToExecute($schema, $operation, [$fragment], ['unusedVar' => true]);
 
         /** @var ExecutionResult $result */
         $result = $adapter->wait($promise);

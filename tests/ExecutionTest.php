@@ -10,7 +10,7 @@ use GraphQL\GraphQL;
 use GraphQL\Type\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use XGraphQL\HttpSchema\HttpExecutionDelegator;
+use XGraphQL\HttpSchema\HttpDelegator;
 use XGraphQL\HttpSchema\HttpSchemaFactory;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\AST\PrefixTypenameTransformer;
@@ -23,16 +23,16 @@ class ExecutionTest extends TestCase
 {
     private ?Schema $transformedSchema = null;
 
-    private ?DelegatedErrorsReporter $errorsReporter = null;
+    private ?ErrorsReporter $errorsReporter = null;
 
     public function setUp(): void
     {
         parent::setUp();
 
         if (null === $this->transformedSchema) {
-            $delegator = new HttpExecutionDelegator('https://countries.trevorblades.com/');
+            $delegator = new HttpDelegator('https://countries.trevorblades.com/');
 
-            $this->errorsReporter = new DelegatedErrorsReporter();
+            $this->errorsReporter = new ErrorsReporter();
             $this->transformedSchema = SchemaTransformer::transform(
                 HttpSchemaFactory::createFromIntrospectionQuery($delegator),
                 [
