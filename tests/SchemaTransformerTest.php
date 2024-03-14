@@ -9,7 +9,7 @@ use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
+use XGraphQL\Delegate\SchemaDelegator;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
 use XGraphQL\Utils\SchemaPrinter;
@@ -25,7 +25,7 @@ type Query {
 }
 SDL
         );
-        $delegator = new SchemaExecutionDelegator($schema);
+        $delegator = new SchemaDelegator($schema);
         $schemaTransformed = SchemaTransformer::transform($delegator, []);
 
         $this->assertInstanceOf(Schema::class, $schema);

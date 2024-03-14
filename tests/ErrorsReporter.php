@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace XGraphQL\SchemaTransformer\Test;
 
-use XGraphQL\DelegateExecution\DelegatedErrorsReporterInterface;
+use XGraphQL\DelegateExecution\ErrorsReporterInterface;
 
-class DelegatedErrorsReporter implements DelegatedErrorsReporterInterface
+class ErrorsReporter implements ErrorsReporterInterface
 {
     public array $lastErrors;
 

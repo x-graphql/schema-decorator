@@ -26,27 +26,27 @@ use GraphQL\Type\Definition\UnionType;
 use GraphQL\Type\Definition\WrappingType;
 use GraphQL\Type\Introspection;
 use GraphQL\Type\Schema;
-use XGraphQL\DelegateExecution\ExecutionDelegatorInterface;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
+use XGraphQL\Delegate\DelegatorInterface;
+use XGraphQL\Delegate\SchemaDelegatorInterface;
 use XGraphQL\SchemaTransformer\AST\NameTransformedDirective;
 use XGraphQL\SchemaTransformer\Exception\InvalidArgumentException;
 use XGraphQL\SchemaTransformer\Exception\RuntimeException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
 use XGraphQL\Utils\Variable;
 
-final readonly class ExecutionDelegator implements ExecutionDelegatorInterface
+final readonly class ExecutionDelegator implements DelegatorInterface
 {
     /**
-     * @param SchemaExecutionDelegatorInterface $delegator
+     * @param SchemaDelegatorInterface $delegator
      * @param iterable<TransformerInterface> $transformers
      */
     public function __construct(
-        private SchemaExecutionDelegatorInterface $delegator,
+        private SchemaDelegatorInterface $delegator,
         private iterable $transformers,
     ) {
     }
 
-    public function delegate(
+    public function delegateToExecute(
         Schema $executionSchema,
         OperationDefinitionNode $operation,
         array $fragments = [],
@@ -67,7 +67,7 @@ final readonly class ExecutionDelegator implements ExecutionDelegatorInterface
         /// Need to clean up unused variable values after operation and fragments transformed.
         $this->removeUnusedVariableValues($context);
 
-        $promise = $this->delegator->delegate(
+        $promise = $this->delegator->delegateToExecute(
             $executionSchema,
             $context->operation,
             $context->fragments,
@@ -75,7 +75,7 @@ final readonly class ExecutionDelegator implements ExecutionDelegatorInterface
         );
 
         return $promise->then(
-            fn(ExecutionResult $result) => $this->transformExecutionResult(
+            fn (ExecutionResult $result) => $this->transformExecutionResult(
                 $context,
                 $result,
                 $transformedTypenameMapping,

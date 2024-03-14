@@ -14,10 +14,10 @@ use GraphQL\Utils\BuildSchema;
 use GraphQL\Validator\DocumentValidator;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
-use XGraphQL\DelegateExecution\DelegatedErrorsReporterInterface;
+use XGraphQL\Delegate\SchemaDelegator;
+use XGraphQL\Delegate\SchemaDelegatorInterface;
+use XGraphQL\DelegateExecution\ErrorsReporterInterface;
 use XGraphQL\DelegateExecution\Execution;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegator;
-use XGraphQL\DelegateExecution\SchemaExecutionDelegatorInterface;
 use XGraphQL\SchemaTransformer\AST\ASTResolver;
 use XGraphQL\SchemaTransformer\Execution\ExecutionDelegator;
 use XGraphQL\Utils\SchemaPrinter;
@@ -35,13 +35,13 @@ final readonly class SchemaTransformer
      * @throws \ReflectionException
      */
     public static function transform(
-        SchemaExecutionDelegatorInterface|Schema $schemaOrDelegator,
+        SchemaDelegatorInterface|Schema $schemaOrDelegator,
         iterable $transformers,
         CacheInterface $cache = null,
-        DelegatedErrorsReporterInterface $errorsReporter = null,
+        ErrorsReporterInterface $errorsReporter = null,
     ): Schema {
         if ($schemaOrDelegator instanceof Schema) {
-            $delegator = new SchemaExecutionDelegator($schemaOrDelegator);
+            $delegator = new SchemaDelegator($schemaOrDelegator);
         } else {
             $delegator = $schemaOrDelegator;
         }
