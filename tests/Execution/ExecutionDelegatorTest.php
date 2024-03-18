@@ -7,6 +7,7 @@ namespace XGraphQL\SchemaTransformer\Test\Execution;
 use GraphQL\Executor\ExecutionResult;
 use GraphQL\Executor\Promise\Adapter\SyncPromiseAdapter;
 use GraphQL\Language\AST\FieldNode;
+use GraphQL\Language\AST\NodeList;
 use GraphQL\Language\AST\ObjectValueNode;
 use GraphQL\Language\AST\SelectionNode;
 use GraphQL\Language\Parser;
@@ -19,7 +20,8 @@ use GraphQL\Utils\BuildSchema;
 use PHPUnit\Framework\TestCase;
 use XGraphQL\Delegate\SchemaDelegatorInterface;
 use XGraphQL\SchemaTransformer\Execution\ExecutionDelegator;
-use XGraphQL\SchemaTransformer\Execution\ResultTransformerInterface;
+use XGraphQL\SchemaTransformer\Execution\PostExecutionTransformerInterface;
+use XGraphQL\SchemaTransformer\Execution\PreExecutionTransformerInterface;
 use XGraphQL\SchemaTransformer\Execution\SelectionTransformerInterface;
 use XGraphQL\SchemaTransformer\Execution\TransformContext;
 
@@ -51,11 +53,24 @@ class ExecutionDelegatorTest extends TestCase
             ->method('delegateToExecute')
             ->willReturn($adapter->createFulfilled(new ExecutionResult()));
 
-        $resultTransformer = $this->createMock(ResultTransformerInterface::class);
+        $preExeTransformer = $this->createMock(PreExecutionTransformerInterface::class);
 
-        $resultTransformer
+        $preExeTransformer
             ->expects($this->once())
-            ->method('transformResult')
+            ->method('preExecute')
+            ->willReturnCallback(
+                function (TransformContext $context): void {
+                    /// remove unused var manually
+                    $context->operation->variableDefinitions = new NodeList([]);
+                    $context->variableValues = [];
+                }
+            );
+
+        $postExeTransformer = $this->createMock(PostExecutionTransformerInterface::class);
+
+        $postExeTransformer
+            ->expects($this->once())
+            ->method('postExecute')
             ->willReturnCallback(function (TransformContext $context, ExecutionResult $result): void {
                 $result->data = ['transformed'];
             });
@@ -85,7 +100,7 @@ class ExecutionDelegatorTest extends TestCase
 
         $resolver = new ExecutionDelegator(
             $delegator,
-            [$resultTransformer, $selectionTransformer],
+            [$postExeTransformer, $selectionTransformer, $preExeTransformer],
         );
         $fragment = Parser::fragmentDefinition(
             <<<'GQL'

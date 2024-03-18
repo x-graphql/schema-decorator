@@ -7,7 +7,7 @@ namespace XGraphQL\SchemaTransformer\Execution;
 use GraphQL\Executor\ExecutionResult;
 use XGraphQL\SchemaTransformer\TransformerInterface;
 
-interface ResultTransformerInterface extends TransformerInterface
+interface PostExecutionTransformerInterface extends TransformerInterface
 {
-    public function transformResult(TransformContext $context, ExecutionResult $result): void;
+    public function postExecute(TransformContext $context, ExecutionResult $result): void;
 }

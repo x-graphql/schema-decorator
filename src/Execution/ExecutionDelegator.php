@@ -32,7 +32,6 @@ use XGraphQL\SchemaTransformer\AST\NameTransformedDirective;
 use XGraphQL\SchemaTransformer\Exception\InvalidArgumentException;
 use XGraphQL\SchemaTransformer\Exception\RuntimeException;
 use XGraphQL\SchemaTransformer\TransformerInterface;
-use XGraphQL\Utils\Variable;
 
 final readonly class ExecutionDelegator implements DelegatorInterface
 {
@@ -64,8 +63,7 @@ final readonly class ExecutionDelegator implements DelegatorInterface
         $this->transformFragments($context, $transformedTypenameMapping);
         $this->transformVariableDefinitions($context);
 
-        /// Need to clean up unused variable values after operation and fragments transformed.
-        $this->removeUnusedVariableValues($context);
+        $this->preExecute($context);
 
         $promise = $this->delegator->delegateToExecute(
             $executionSchema,
@@ -75,7 +73,7 @@ final readonly class ExecutionDelegator implements DelegatorInterface
         );
 
         return $promise->then(
-            fn (ExecutionResult $result) => $this->transformExecutionResult(
+            fn (ExecutionResult $result) => $this->postExecute(
                 $context,
                 $result,
                 $transformedTypenameMapping,
@@ -249,37 +247,15 @@ final readonly class ExecutionDelegator implements DelegatorInterface
         }
     }
 
-    private function removeUnusedVariableValues(TransformContext $context): void
+    private function preExecute(TransformContext $context): void
     {
-        $variablesUsing = array_fill_keys($this->getVariablesUsing($context), true);
-
-        foreach ($context->variableValues as $name => $value) {
-            if (!array_key_exists($name, $variablesUsing)) {
-                unset($context->variableValues[$name]);
+        foreach ($this->transformers as $transformer) {
+            if (!$transformer instanceof PreExecutionTransformerInterface) {
+                continue;
             }
+
+            $transformer->preExecute($context);
         }
-
-        $variableDefinitions = $context->operation->variableDefinitions;
-
-        foreach ($variableDefinitions as $pos => $definition) {
-            /** @var VariableDefinitionNode $definition */
-
-            if (!array_key_exists($definition->variable->name->value, $variablesUsing)) {
-                unset($variableDefinitions[$pos]);
-            }
-        }
-
-        $variableDefinitions->reindex();
-    }
-
-    private function getVariablesUsing(TransformContext $context): array
-    {
-        $variables = array_merge(
-            Variable::getVariablesInOperation($context->operation),
-            Variable::getVariablesInFragments($context->fragments),
-        );
-
-        return array_unique($variables);
     }
 
     /**
@@ -288,17 +264,17 @@ final readonly class ExecutionDelegator implements DelegatorInterface
      * @param \SplObjectStorage<ObjectType|InterfaceType|UnionType> $transformedTypenameMapping
      * @return ExecutionResult
      */
-    private function transformExecutionResult(
+    private function postExecute(
         TransformContext $context,
         ExecutionResult $result,
         \SplObjectStorage $transformedTypenameMapping
     ): ExecutionResult {
         foreach ($this->transformers as $transformer) {
-            if (!$transformer instanceof ResultTransformerInterface) {
+            if (!$transformer instanceof PostExecutionTransformerInterface) {
                 continue;
             }
 
-            $transformer->transformResult($context, $result);
+            $transformer->postExecute($context, $result);
         }
 
         $typenameMapping = [];
