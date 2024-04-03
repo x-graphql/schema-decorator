@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 use XGraphQL\Delegate\SchemaDelegator;
+use XGraphQL\SchemaCache\SchemaCache;
 use XGraphQL\SchemaTransformer\AST\PrefixRootFieldsNameTransformer;
 use XGraphQL\SchemaTransformer\SchemaTransformer;
 use XGraphQL\Utils\SchemaPrinter;
@@ -49,8 +50,8 @@ SDL
 
     public function testCreateTransformedSchemaCache(): void
     {
-        $cache = new ArrayAdapter();
-        $psr16Cache = new Psr16Cache($cache);
+        $arrayCache = new ArrayAdapter();
+        $schemaCache = new SchemaCache(new Psr16Cache($arrayCache));
 
         $schema = BuildSchema::build(
             <<<'SDL'
@@ -62,16 +63,16 @@ SDL
 
         $transformer = new PrefixRootFieldsNameTransformer('XGraphQL_');
 
-        $this->assertFalse($psr16Cache->has(SchemaTransformer::CACHE_KEY));
+        $this->assertEmpty($arrayCache->getValues());
 
-        $schemaTransformed = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
+        $schemaTransformed = SchemaTransformer::transform($schema, [$transformer], $schemaCache);
 
-        $this->assertInstanceOf(Schema::class, $schema);
+        $this->assertInstanceOf(Schema::class, $schemaTransformed);
         $this->assertNotEquals($schema, $schemaTransformed);
 
-        $schemaTransformedFromCache = SchemaTransformer::transform($schema, [$transformer], $psr16Cache);
+        $schemaTransformedFromCache = SchemaTransformer::transform($schema, [$transformer], $schemaCache);
 
-        $this->assertTrue($psr16Cache->has(SchemaTransformer::CACHE_KEY));
+        $this->assertNotEmpty($arrayCache->getValues());
         $this->assertNotEquals($schemaTransformed, $schemaTransformedFromCache);
 
         $expectingSDL = <<<'SDL'
